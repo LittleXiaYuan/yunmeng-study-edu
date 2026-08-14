@@ -1,0 +1,64 @@
+﻿graph TD
+    subgraph "数据采集与感知层 (Data Collection Layer)"
+        Trace["学习轨迹与点击流埋点"]
+        TextCapture["多维作答文本与语义采集"]
+        TimeLog["沉浸时长与停顿分析"]
+        EmotionCapture["交互反馈意图识别"]
+        
+        Trace & TextCapture & TimeLog & EmotionCapture -->|数据总线聚合| UI
+    end
+
+    subgraph "前端交互与应用层 (Client Layer - React/Next.js)"
+        UI["多端自适应 UI"]
+        ChatUI["沉浸式对话流 (Conversational UI)"]
+        FX["游戏化正向反馈引擎 (Confetti特效)"]
+        Profile["动态多维学情大屏"]
+        
+        UI --> ChatUI
+        UI --> Profile
+        ChatUI --> FX
+    end
+
+    subgraph "控制面与网关层 (Control Plane / Tori)"
+        Gateway["API Gateway & 路由分发"]
+        Auth["身份认证 / 权限与审计链"]
+        Gateway <--> Auth
+    end
+    
+    ChatUI -- "WebSocket / SSE 流式传输" --> Gateway
+
+    subgraph "云雀 Agent 底座与 Cogni 运行时 (Yunque Core)"
+        Planner["多步并行规划器 Planner"]
+        CogniRT["Cogni 三环运行时: Active / Reflective / Dreaming"]
+        Router["LLM Pool 智能路由"]
+        
+        subgraph "上下文与特性引擎 (Context & Traits)"
+            Mem["5层记忆链 5-Layer Memory"]
+            KG["知识图谱 + RAG"]
+            Guard["安全护栏 Guardrail"]
+            Trust["多维学情信任分引擎 Trust Score"]
+            Persona["身份与情绪图谱 Persona/Emotion"]
+        end
+        
+        Gateway --> Planner
+        Planner --> CogniRT
+        Planner --> Router
+        CogniRT <--> Mem & KG & Guard & Trust & Persona
+    end
+
+    subgraph "执行与算力层 (Execution & Model Layer)"
+        Sandbox["沙盒 Sandbox & 技能中心 SkillHub"]
+        LLM["DeepSeek-v4-flash / 算力池"]
+        Prompt["苏格拉底认知脚手架 Prompt 工程池"]
+        
+        CogniRT <--> Sandbox
+        Router -- "智能推理" --> LLM
+        LLM <--> Prompt
+    end
+
+    subgraph "数据持久层 (Data Layer)"
+        DB[("核心数据库 SQLite/PostgreSQL / 向量库")]
+        Mem --> DB
+        KG --> DB
+        Trust --> DB
+    end

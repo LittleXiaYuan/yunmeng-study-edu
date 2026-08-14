@@ -1,0 +1,73 @@
+# ─── 运行时数据 & 密钥 ────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+*.db
+*.sqlite
+*.sqlite3
+backend/data/
+data/
+uploads/
+secrets/
+*.key
+*.pem
+
+# ─── Node / Next.js ──────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+.turbo/
+.parcel-cache/
+.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+*.tsbuildinfo
+_next/
+
+# ─── Go / 后端 ───────────────────────────────────────────────────────────
+backend/bin/
+backend/data/study.db*
+study.db*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# ─── 构建产物 / 桌面包 ──────────────────────────────────────────────────
+dist-desktop/
+dist-c4/
+release/
+build/
+
+# ─── 工具链本地配置 ──────────────────────────────────────────────────────
+.claude/
+.codex/
+.atomcode/
+.tmp_upload/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── 测试产物 ───────────────────────────────────────────────────────────
+coverage/
+*.test
+*.out
+playwright-report/
+test-results/
+
+# ─── 项目自带脚本会写到 dist 的 ──────────────────────────────────────────
+harmony/build/
+harmony/node_modules/
+
+# ─── 临时文件 ───────────────────────────────────────────────────────────
+*.tmp
+*.bak
+*.log
+*.pid

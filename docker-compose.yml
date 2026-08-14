@@ -1,0 +1,30 @@
+services:
+  edu-backend:
+    build:
+      context: ./backend
+    ports:
+      - "18080:18080"
+    environment:
+      EDU_ADDR: ":18080"
+      EDU_DATA_DIR: "/app/data"
+      EDU_STORAGE_DRIVER: "${EDU_STORAGE_DRIVER:-sqlite}"
+      EDU_SQLITE_PATH: "${EDU_SQLITE_PATH:-/app/data/study.db}"
+      EDU_ALLOWED_ORIGINS: "http://127.0.0.1:18081,http://localhost:18081,http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:3001,http://localhost:3001"
+      YUNQUE_BASE_URL: "${YUNQUE_BASE_URL:-http://host.docker.internal:8080}"
+      YUNQUE_API_KEY: "${YUNQUE_API_KEY:-}"
+      EDU_API_TOKEN: "${EDU_API_TOKEN:-}"
+    volumes:
+      - edu-data:/app/data
+
+  web:
+    build:
+      context: ./teacher-web-next
+      args:
+        NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:18080"
+    ports:
+      - "18081:80"
+    depends_on:
+      - edu-backend
+
+volumes:
+  edu-data:

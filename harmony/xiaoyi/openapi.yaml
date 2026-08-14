@@ -1,0 +1,112 @@
+openapi: 3.0.3
+info:
+  title: 云元伴学 Agent 技能接口
+  description: |
+    云元——沉浸式AI伴学系统的鸿蒙侧技能定义（小艺开放平台 Agent/Skills 注册用）。
+    由网关代理转发到云元后端；核心差异化为「信任分门控的苏格拉底伴学」：
+    Agent 不直接给答案，按学生信任分决定只提问 / 给提示 / 部分作答 / 完整讲解。
+  version: 1.0.0
+servers:
+  - url: http://127.0.0.1:18080
+    description: 本地开发（部署后替换为公网域名）
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 云元后端登录 token（预配置学生/教师账号，经 /auth/login 获取）
+  schemas:
+    PageContext:
+      type: object
+      description: 学生当前屏幕上下文（可选，让教练“看见”正在做的题）
+      properties:
+        scene: { type: string, example: homework_step }
+        title: { type: string, example: 图书馆借阅库设计 }
+        step_title: { type: string, example: 第1步 识别实体 }
+        instruction: { type: string, example: 找出场景中的实体与属性 }
+        student_draft: { type: string, example: 我写了读者和图书两个实体 }
+    TutorChatRequest:
+      type: object
+      required: [student_id, course_id, question]
+      properties:
+        student_id: { type: string, example: student_001 }
+        course_id: { type: string, example: course_db }
+        question: { type: string, example: 这一步我该怎么想？ }
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              role: { type: string, enum: [user, assistant] }
+              content: { type: string }
+        page_context: { $ref: '#/components/schemas/PageContext' }
+    TutorChatResponse:
+      type: object
+      properties:
+        agent: { type: string, example: TutorAgent }
+        message:
+          type: string
+          description: 引导性回复（始终以提问结尾，不直接给答案）
+        trust_level:
+          type: string
+          enum: [locked, hint, partial, explain]
+          description: 当前信任分等级（由 trust.level 映射）
+        trust_score: { type: integer, example: 45 }
+        citations:
+          type: array
+          description: 回答依据的课程资料片段（RAG 命中）
+          items:
+            type: object
+            properties:
+              title: { type: string }
+              snippet: { type: string }
+security:
+  - bearerAuth: []
+paths:
+  /edu/chat:
+    post:
+      operationId: yunYuanTutorChat
+      summary: 云元伴学对话（苏格拉底引导）
+      description: |
+        学生提问后返回引导性回复。回复遵循信任分门控：
+        locked 只提问；hint 给提示；partial 给部分答案；explain 完整讲解。
+        小艺 Agent 应将 message 原样播报/展示，并以 trust_level 决定引导话术强度。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TutorChatRequest' }
+      responses:
+        '200':
+          description: 伴学回复
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TutorChatResponse' }
+  /edu/students/{id}:
+    get:
+      operationId: yunYuanTrustPolicy
+      summary: 查询学生信任分等级
+      description: 返回学生认知记忆（含 trust_score），小艺 Agent 可据此调整引导策略。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, example: student_001 }
+      responses:
+        '200':
+          description: 学生详情（memory.trust_score 即信任分）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  name: { type: string }
+                  memory:
+                    type: object
+                    properties:
+                      trust_score: { type: integer }
+                      knowledge_weakness:
+                        type: array
+                        items: { type: string }
+                      thinking_style: { type: string }

@@ -1,0 +1,7 @@
+User-Agent: *
+Allow: /
+Disallow: /api/
+Disallow: /private/
+
+Host: https://example.com
+Sitemap: https://example.com/sitemap.xml
