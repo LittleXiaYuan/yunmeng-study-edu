@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
-import { LogIn, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { LogIn, Sparkles, Video } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSession } from "@/components/session-provider";
+import { useDemoMode, isDemoRole } from "@/lib/demo-mode";
 import type { Role } from "@/lib/types";
 
 // React Bits WebGL 组件：懒加载 + 关闭 SSR（skill 最佳实践）
@@ -45,33 +46,67 @@ const roleHome: Record<Role, string> = {
 export function LoginScreen(): ReactNode {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, login, busy, error } = useSession();
+  const { user, login, logout, busy, error } = useSession();
+  const demo = useDemoMode();
 
-  const initialPortal = (searchParams.get("portal") as Role) || "admin";
-  const [portal, setPortal] = useState<Role>(
-    ["admin", "teacher", "student"].includes(initialPortal)
-      ? initialPortal
-      : "admin",
-  );
-  const [form, setForm] = useState(presets[portal]);
+  const initialPortal = (() => {
+    const fromDemo = demo.demoRole;
+    if (fromDemo) return fromDemo;
+    const fromPortal = searchParams.get("portal") as Role | null;
+    if (fromPortal && isDemoRole(fromPortal)) return fromPortal;
+    return "admin" as Role;
+  })();
+  const [portal, setPortal] = useState<Role>(initialPortal);
+  const [form, setForm] = useState(presets[initialPortal]);
+  const autoSubmitted = useRef(false);
 
-  // If already logged in, bounce to the right portal.
+  // 演示模式：自动选 portal + 自动提交（每个 portal 一次）
+  // 注意：故意不返回 cleanup 清掉 setTimeout，否则 useEffect 在 user 变化时会取消定时器
+  // 而定时器触发后即使 LoginScreen 已被替换也不会出问题（router.replace 是幂等的）
   useEffect(() => {
-    if (user && user.role) {
-      router.replace(roleHome[user.role as Role] ?? "/");
+    if (!demo.demoRole || autoSubmitted.current) return;
+    // 已登录但角色不匹配：先清掉旧 token，再自动登新角色
+    if (user && user.role !== demo.demoRole) {
+      logout();
+      autoSubmitted.current = true;
+      setTimeout(() => {
+        void handleLoginWith(presets[demo.demoRole!]);
+      }, 120);
+      return;
     }
-  }, [user, router]);
+    if (user) return; // 已登录且角色一致，交给「已登录则跳走」逻辑
+    autoSubmitted.current = true;
+    setPortal(demo.demoRole);
+    setForm(presets[demo.demoRole]);
+    setTimeout(() => {
+      void handleLoginWith(presets[demo.demoRole!]);
+    }, 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demo.demoRole, user]);
+
+  // If already logged in (且与演示目标一致)，bounce 到对应 portal。
+  // 演示模式下：当前角色 != 目标角色时不走这里，让 auto-login 流程处理。
+  useEffect(() => {
+    if (!user || !user.role) return;
+    if (demo.demoRole && demo.demoRole !== user.role) return;
+    router.replace(demo.withDemo(roleHome[user.role as Role] ?? "/"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, router, demo.demoRole]);
 
   function choosePortal(next: Role) {
     setPortal(next);
     setForm(presets[next]);
   }
 
-  async function handleLogin() {
-    const u = await login(form.username, form.password);
+  async function handleLoginWith(creds: { username: string; password: string }) {
+    const u = await login(creds.username, creds.password);
     if (u && u.role) {
-      router.replace(roleHome[u.role as Role] ?? "/");
+      router.replace(demo.withDemo(roleHome[u.role as Role] ?? "/"));
     }
+  }
+
+  async function handleLogin() {
+    await handleLoginWith(form);
   }
 
   return (
@@ -86,6 +121,16 @@ export function LoginScreen(): ReactNode {
         />
       </div>
 
+      {demo.isDemo && (
+        <div
+          aria-label="录屏模式"
+          className="absolute right-4 top-4 z-20 inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-amber-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100 backdrop-blur"
+        >
+          <Video size={12} />
+          录屏模式{demo.demoRole ? ` · ${demo.demoRole}` : ""}
+        </div>
+      )}
+
       <section className="relative z-10 w-full max-w-md rounded-[1.75rem] border border-white/15 bg-white/[0.07] p-8 text-white shadow-2xl backdrop-blur-xl">
         <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#3b5bdb]/85 text-white shadow-lg shadow-[#3b5bdb]/30">
           <Sparkles size={22} />
@@ -94,7 +139,7 @@ export function LoginScreen(): ReactNode {
           云雀教学
         </span>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          进入教学服务平台
+          {demo.demoRole ? `自动登录 ${demo.demoRole} 端…` : "进入教学服务平台"}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-white/70">
           超管看总览，教师管课程任务，学生专注分步练习。

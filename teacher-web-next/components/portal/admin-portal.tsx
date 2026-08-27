@@ -26,10 +26,12 @@ import {
 } from "./panel-registry";
 import { StudentImportPanel } from "./roster/student-import-panel";
 import { StudentListPanel } from "./roster/student-list-panel";
+import { UserListPanel } from "./roster/user-list-panel";
 import { type NavGroup, PortalShell, Segmented } from "./ui";
 import { LessonLibrary } from "./lessons/lesson-library";
 import { RagSearchPanel } from "./lessons/rag-search-panel";
 import { OverviewView, PeopleOpsView } from "./views";
+import { useDemoMode } from "@/lib/demo-mode";
 
 type AdminView =
   | "overview"
@@ -78,10 +80,13 @@ const NAV_GROUPS: NavGroup[] = [
 /** 超管：管理系统为主 + Agent 悬浮窗。 */
 export function AdminPortal() {
   const [view, setView] = useState<AdminView>("overview");
-  const [peopleTab, setPeopleTab] = useState<"list" | "import">("list");
+  const [peopleTab, setPeopleTab] = useState<"list" | "import" | "users">(
+    "list",
+  );
   const [forceGuide, setForceGuide] = useState(false);
   const [panelStack, setPanelStack] = useState<PanelInstance[]>([]);
   const { dashboard, llmConfig } = useSession();
+  const demo = useDemoMode();
 
   const activePanel = panelStack[panelStack.length - 1] ?? null;
   const openPanel = useCallback<OpenPanel>((kind, props) => {
@@ -165,7 +170,7 @@ export function AdminPortal() {
           };
 
     body = (
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+      <div className="mx-auto flex w-full max-w-full flex-col gap-4 px-4 sm:max-w-3xl sm:gap-8 sm:px-6">
         <header>
           <p className="eyebrow">平台总览</p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -202,13 +207,14 @@ export function AdminPortal() {
       <>
         <PageIntro
           eyebrow="人员"
-          title="学生名单与导入"
-          desc="列表可搜索分页；批量导入支持可编辑预览，避免「生成后改不了」。"
+          title="学生名单、账号与导入"
+          desc="学生列表与批量导入；账号管理可创建教师/超管，停用/启用现有账号。"
           actions={
             <Segmented
               options={[
                 { key: "list", label: "学生列表" },
                 { key: "import", label: "批量导入" },
+                { key: "users", label: "账号管理" },
               ]}
               value={peopleTab}
               onChange={setPeopleTab}
@@ -221,8 +227,10 @@ export function AdminPortal() {
         >
           {peopleTab === "list" ? (
             <StudentListPanel openPanel={openPanel} />
-          ) : (
+          ) : peopleTab === "import" ? (
             <StudentImportPanel openPanel={openPanel} />
+          ) : (
+            <UserListPanel />
           )}
         </div>
       </>
@@ -288,66 +296,74 @@ export function AdminPortal() {
 
   return (
     <>
-      <OnboardingBanner
-        id="admin"
-        title="平台上手"
-        forceShow={forceGuide}
-        onDismiss={() => setForceGuide(false)}
-        onVisibilityChange={(v) => {
-          if (!v) setForceGuide(false);
-        }}
-        steps={[
-          {
-            id: "settings",
-            target: "settings",
-            label: "配置大模型",
-            hint: "打开系统配置，选 DeepSeek 预设并填入 API Key。",
-            done: llmOk,
-          },
-          {
-            id: "people",
-            target: "people",
-            label: "导入学生名单",
-            hint: "在人员名单里批量导入，表格确认后再生效。",
-            done: hasStudents,
-          },
-          {
-            id: "materials",
-            target: "materials",
-            label: "上传教案资料",
-            hint: "资料导入支持 PDF / ZIP，会写入检索索引。",
-            done: hasLessons,
-          },
-        ]}
-        onStepClick={(id) => setView(id as AdminView)}
-      />
+      {!demo.hideChrome && (
+        <OnboardingBanner
+          id="admin"
+          title="平台上手"
+          forceShow={forceGuide}
+          onDismiss={() => setForceGuide(false)}
+          onVisibilityChange={(v) => {
+            if (!v) setForceGuide(false);
+          }}
+          steps={[
+            {
+              id: "settings",
+              target: "settings",
+              label: "配置大模型",
+              hint: "打开系统配置，选 DeepSeek 预设并填入 API Key。",
+              done: llmOk,
+            },
+            {
+              id: "people",
+              target: "people",
+              label: "导入学生名单",
+              hint: "在人员名单里批量导入，表格确认后再生效。",
+              done: hasStudents,
+            },
+            {
+              id: "materials",
+              target: "materials",
+              label: "上传教案资料",
+              hint: "资料导入支持 PDF / ZIP，会写入检索索引。",
+              done: hasLessons,
+            },
+          ]}
+          onStepClick={(id) => setView(id as AdminView)}
+        />
+      )}
       <PortalShell
         title={meta[view].title}
         subtitle={meta[view].subtitle}
         groups={navGroups}
         active={view}
         onSelect={(id) => setView(id as AdminView)}
-        headerActions={<OnboardingTrigger onClick={showGuide} />}
+        headerActions={
+          demo.hideChrome ? undefined : <OnboardingTrigger onClick={showGuide} />
+        }
         sidebarFooter={
-          <OnboardingTrigger onClick={showGuide} label="显示使用引导" />
+          demo.hideChrome ? undefined : (
+            <OnboardingTrigger onClick={showGuide} label="显示使用引导" />
+          )
         }
         floating={
           <>
-            <AgentFloat
-              mode="admin"
-              onNavigate={(id) => {
-                const known: AdminView[] = [
-                  "overview",
-                  "people",
-                  "classes",
-                  "materials",
-                  "settings",
-                ];
-                if (known.includes(id as AdminView)) {
-                  setView(id as AdminView);
-                }
-              }}
-            />
+            {!demo.hideChrome && (
+              <AgentFloat
+                mode="admin"
+                onNavigate={(id) => {
+                  const known: AdminView[] = [
+                    "overview",
+                    "people",
+                    "classes",
+                    "materials",
+                    "settings",
+                  ];
+                  if (known.includes(id as AdminView)) {
+                    setView(id as AdminView);
+                  }
+                }}
+              />
+            )}
             <PanelDock
               open={Boolean(activePanel)}
               title={

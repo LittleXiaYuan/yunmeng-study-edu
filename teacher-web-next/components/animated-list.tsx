@@ -158,7 +158,6 @@ const AnimatedListItemComponent: React.FC<{
       whileHover={hoverEffect === "scale" ? { scale: 1.02 } : undefined}
       transition={{ duration: 0.15 }}
     >
-      {/* Swipe indicator */}
       {swipeToDismiss && (
         <motion.div
           className="absolute inset-0 flex items-center justify-center pointer-events-none"
@@ -168,7 +167,6 @@ const AnimatedListItemComponent: React.FC<{
         </motion.div>
       )}
 
-      {/* Main content */}
       <motion.div
         className="p-4"
         style={swipeToDismiss ? { x, opacity, rotateZ } : undefined}
@@ -176,7 +174,6 @@ const AnimatedListItemComponent: React.FC<{
         {itemRenderer(item)}
       </motion.div>
 
-      {/* Ripples */}
       {ripples.map((ripple) => (
         <Ripple
           key={ripple.id}
@@ -366,7 +363,6 @@ const AnimatedList: React.FC<AnimatedListProps> = ({
       className={cn("w-full relative overflow-hidden", className)}
       style={{ height }}
     >
-      {/* Fade edge overlays */}
       {fadeEdges && (
         <>
           <div
@@ -430,7 +426,6 @@ const AnimatedList: React.FC<AnimatedListProps> = ({
         </ul>
       </div>
 
-      {/* Custom styles */}
       <style>{`
         .scrollbar-hide {
           -ms-overflow-style: none;

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useSession } from "@/components/session-provider";
+import StaggeredText from "@/components/staggered-text";
 import { AgentFloat } from "./agent-float";
 import { ClassProfilePanel } from "./roster/class-profile-panel";
 import {
@@ -26,10 +27,17 @@ import {
   type OpenPanel,
   type PanelInstance,
 } from "./panel-registry";
-import { StudentListPanel } from "./roster/student-list-panel";
 import { type NavGroup, PortalShell, TaskList } from "./ui";
+import { StudentListPanel } from "./roster/student-list-panel";
 import { LessonLibrary } from "./lessons/lesson-library";
 import { RagSearchPanel } from "./lessons/rag-search-panel";
+import { useDemoMode } from "@/lib/demo-mode";
+
+// React Bits 视觉组件：错落入场文字（更轻、更稳）
+// const StaggeredText = dynamic(
+//   () => import("@/components/staggered-text"),
+//   { ssr: false },
+// );
 
 type TeacherView =
   | "overview"
@@ -92,6 +100,7 @@ export function TeacherPortal() {
   const [forceGuide, setForceGuide] = useState(false);
   const [panelStack, setPanelStack] = useState<PanelInstance[]>([]);
   const { dashboard } = useSession();
+  const demo = useDemoMode();
 
   const activePanel = panelStack[panelStack.length - 1] ?? null;
 
@@ -179,7 +188,7 @@ export function TeacherPortal() {
   let body: React.ReactNode;
   if (view === "overview") {
     body = (
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+      <div className="mx-auto flex w-full max-w-full flex-col gap-4 px-4 sm:max-w-3xl sm:gap-8 sm:px-6">
         <header>
           <p className="eyebrow">工作台</p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -198,6 +207,17 @@ export function TeacherPortal() {
             <span className="mx-1.5 text-border">·</span>
             学生 {dashboard?.students?.length ?? 0}
           </p>
+          {/* 错落入场：把工作台核心信息做成视觉锚点 */}
+          <div className="mt-3 max-w-2xl text-sm text-muted-foreground/90 sm:text-base">
+            <StaggeredText
+              text={`备课与布置 · ${dashboard?.lessons?.length ?? 0} 份教案 · 已发布 ${published.length}${drafts.length > 0 ? ` · 草稿 ${drafts.length}` : ""} · 学生 ${dashboard?.students?.length ?? 0} · 信任分门控 · 屏幕感知 · RAG 检索`}
+              as="p"
+              segmentBy="words"
+              delay={24}
+              duration={0.4}
+              className="leading-relaxed"
+            />
+          </div>
           <div className="mt-6 flex flex-wrap gap-2">
             <button
               type="button"
@@ -359,66 +379,74 @@ export function TeacherPortal() {
 
   return (
     <>
-      <OnboardingBanner
-        id="teacher"
-        title="教师上手"
-        forceShow={forceGuide}
-        onDismiss={() => setForceGuide(false)}
-        onVisibilityChange={(v) => {
-          if (!v) setForceGuide(false);
-        }}
-        steps={[
-          {
-            id: "materials",
-            target: "materials",
-            label: "导入教案",
-            hint: "侧栏进资料库，点「导入资料」在抽屉上传。",
-            done: hasLessons,
-          },
-          {
-            id: "homework",
-            target: "homework",
-            label: "发布作业",
-            hint: "任务列表点「新建作业」，表单在右侧抽屉。",
-            done: hasHomework,
-          },
-          {
-            id: "students",
-            target: "students",
-            label: "查看学生",
-            hint: "点学生姓名看学情详情抽屉。",
-            done: hasStudents,
-          },
-        ]}
-        onStepClick={(id) => setView(id as TeacherView)}
-      />
+      {!demo.hideChrome && (
+        <OnboardingBanner
+          id="teacher"
+          title="教师上手"
+          forceShow={forceGuide}
+          onDismiss={() => setForceGuide(false)}
+          onVisibilityChange={(v) => {
+            if (!v) setForceGuide(false);
+          }}
+          steps={[
+            {
+              id: "materials",
+              target: "materials",
+              label: "导入教案",
+              hint: "侧栏进资料库，点「导入资料」在抽屉上传。",
+              done: hasLessons,
+            },
+            {
+              id: "homework",
+              target: "homework",
+              label: "发布作业",
+              hint: "任务列表点「新建作业」，表单在右侧抽屉。",
+              done: hasHomework,
+            },
+            {
+              id: "students",
+              target: "students",
+              label: "查看学生",
+              hint: "点学生姓名看学情详情抽屉。",
+              done: hasStudents,
+            },
+          ]}
+          onStepClick={(id) => setView(id as TeacherView)}
+        />
+      )}
       <PortalShell
         title={meta[view].title}
         subtitle={meta[view].subtitle}
         groups={navGroups}
         active={view}
         onSelect={(id) => setView(id as TeacherView)}
-        headerActions={<OnboardingTrigger onClick={showGuide} />}
+        headerActions={
+          demo.hideChrome ? undefined : <OnboardingTrigger onClick={showGuide} />
+        }
         sidebarFooter={
-          <OnboardingTrigger onClick={showGuide} label="显示使用引导" />
+          demo.hideChrome ? undefined : (
+            <OnboardingTrigger onClick={showGuide} label="显示使用引导" />
+          )
         }
         floating={
           <>
-            <AgentFloat
-              mode="teacher"
-              onNavigate={(id) => {
-                const known: TeacherView[] = [
-                  "overview",
-                  "homework",
-                  "materials",
-                  "students",
-                  "report",
-                ];
-                if (known.includes(id as TeacherView)) {
-                  setView(id as TeacherView);
-                }
-              }}
-            />
+            {!demo.hideChrome && (
+              <AgentFloat
+                mode="teacher"
+                onNavigate={(id) => {
+                  const known: TeacherView[] = [
+                    "overview",
+                    "homework",
+                    "materials",
+                    "students",
+                    "report",
+                  ];
+                  if (known.includes(id as TeacherView)) {
+                    setView(id as TeacherView);
+                  }
+                }}
+              />
+            )}
             <PanelDock
               open={Boolean(activePanel)}
               title={dockMeta.title}

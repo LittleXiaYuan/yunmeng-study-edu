@@ -19,6 +19,7 @@ import {
 // MessageCircle/Send used by deprecated AgentPanel only
 import { useState } from "react";
 import { useSession } from "@/components/session-provider";
+import StaggeredText from "@/components/staggered-text";
 import { LessonLibrary } from "./lessons/lesson-library";
 import { fieldCls, primaryBtnCls } from "./page-kit";
 import type { OpenPanel } from "./panel-registry";
@@ -37,12 +38,12 @@ export function OverviewView({ role }: { role: "admin" | "teacher" }) {
   // 工作台概览：少堆 KPI，强调近期内容；上方快捷入口由 portal 负责
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <header className="flex flex-col gap-3 px-4 sm:px-0 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 flex-1">
           <p className="eyebrow">
             {role === "admin" ? "平台总览" : "教学工作台"}
           </p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h2 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl md:text-3xl">
             {user?.name ?? "老师"}，欢迎回来
           </h2>
           <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">
@@ -50,11 +51,22 @@ export function OverviewView({ role }: { role: "admin" | "teacher" }) {
             <span className="mx-1.5 text-border">·</span>
             已发布 {published} 个任务
           </p>
+          {/* 错落入场：欢迎语 / 平台标语 字符依次飞入 */}
+          <div className="mt-3 max-w-2xl text-sm text-muted-foreground/90 sm:text-base">
+            <StaggeredText
+              text={`${user?.name ?? "老师"}，欢迎回来 · ${currentCourse(d)?.name ?? "数据库原理"} · 已发布 ${published} 个任务 · 信任分门控 · 屏幕感知 · RAG 检索`}
+              as="p"
+              segmentBy="words"
+              delay={26}
+              duration={0.42}
+              className="leading-relaxed"
+            />
+          </div>
         </div>
       </header>
 
-      {/* 只保留 2 个有意义的数字 + 一张近期表，避免 KPI 墙 */}
-      <section className="grid grid-cols-2 gap-4">
+      {/* 只保留 2 个有意义的数字 + 一张近期表，避免 KPI 墙。移动端单列，≥sm 双列。 */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
         <KpiCard
           icon={<Database size={19} />}
           label="教案资料"

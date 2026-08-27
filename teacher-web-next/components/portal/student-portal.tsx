@@ -40,6 +40,7 @@ import {
   isOnboardDismissed,
   setOnboardDismissed,
 } from "./onboarding-banner";
+import { useDemoMode } from "@/lib/demo-mode";
 
 type Scene = "home" | "flow" | "ask" | "code" | "profile" | "courses" | "tasks";
 
@@ -57,6 +58,7 @@ export function StudentPortal() {
   const [booted, setBooted] = useState(false);
   const scrollRef = useRef<HTMLElement | null>(null);
   const { user, dashboard, notice, error, refresh } = useSession();
+  const demo = useDemoMode();
 
   function showGuide() {
     setOnboardDismissed("student", false);
@@ -255,6 +257,11 @@ export function StudentPortal() {
         currentCourseId={currentCourseId}
         onEnter={enterCourse}
         onBack={() => setScene("home")}
+        onContinueHomework={(homeworkId, courseId) => {
+          setCurrentCourseId(courseId);
+          setSelectedHomeworkId(homeworkId);
+          setScene("flow");
+        }}
       />
     );
   else if (activeHomework && homeworkDone) {
@@ -353,39 +360,41 @@ export function StudentPortal() {
   return (
     <div style={shellStyle} data-student-shell="1">
       {/* 引导始终挂载：关闭必须可靠；目标在今日主卡 + 主导航 */}
-      <OnboardingBanner
-        id="student"
-        title="开始伴学"
-        forceShow={forceGuide}
-        onDismiss={() => setForceGuide(false)}
-        onVisibilityChange={(v) => {
-          if (!v) setForceGuide(false);
-        }}
-        steps={[
-          {
-            id: "home",
-            target: "tour-home-card",
-            label: "从这里接着练",
-            hint: "点主卡片进入练习台。卡住了在答题页点「教练」，不用离开。",
-            done: Boolean(continueTarget) && homeworkDone,
-          },
-          {
-            id: "tasks",
-            target: "tour-nav-tasks",
-            label: "任务在清单里",
-            hint: "换一份作业到「任务」；日常从「练习 / 今日」继续。",
-            done: allTaskList.length > 0,
-          },
-          {
-            id: "profile",
-            target: "tour-nav-profile",
-            label: "画像看成长",
-            hint: "信任分与薄弱点在「我的」里，答得好提示会更开放。",
-            done: stats.completed > 0,
-          },
-        ]}
-        onStepClick={handleTourStep}
-      />
+      {!demo.hideChrome && (
+        <OnboardingBanner
+          id="student"
+          title="开始伴学"
+          forceShow={forceGuide}
+          onDismiss={() => setForceGuide(false)}
+          onVisibilityChange={(v) => {
+            if (!v) setForceGuide(false);
+          }}
+          steps={[
+            {
+              id: "home",
+              target: "tour-home-card",
+              label: "从这里接着练",
+              hint: "点主卡片进入练习台。卡住了在答题页点「教练」，不用离开。",
+              done: Boolean(continueTarget) && homeworkDone,
+            },
+            {
+              id: "tasks",
+              target: "tour-nav-tasks",
+              label: "任务在清单里",
+              hint: "换一份作业到「任务」；日常从「练习 / 今日」继续。",
+              done: allTaskList.length > 0,
+            },
+            {
+              id: "profile",
+              target: "tour-nav-profile",
+              label: "画像看成长",
+              hint: "信任分与薄弱点在「我的」里，答得好提示会更开放。",
+              done: stats.completed > 0,
+            },
+          ]}
+          onStepClick={handleTourStep}
+        />
+      )}
 
       {/* 统一壳：药丸导航始终在，练习只是中间内容区换场景 */}
       <header
@@ -448,21 +457,33 @@ export function StudentPortal() {
           <span className="hidden items-center gap-1 rounded-full bg-brand-soft px-2.5 py-1 text-[11px] text-brand min-[900px]:inline-flex">
             信任 <strong className="tabular-nums">{stats.score}</strong>
           </span>
-          <ThemeToggle size="sm" />
-          <OnboardingTrigger onClick={showGuide} label="引导" />
-          <button
-            type="button"
-            onClick={refresh}
-            aria-label="刷新"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <RefreshCw size={15} />
-          </button>
-          <ProfileMenu
-            align="end"
-            variant="scene"
-            onOpenProfile={() => setScene("profile")}
-          />
+          {!demo.hideChrome && (
+            <>
+              <ThemeToggle size="sm" />
+              <OnboardingTrigger onClick={showGuide} label="引导" />
+              <button
+                type="button"
+                onClick={refresh}
+                aria-label="刷新"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <RefreshCw size={15} />
+              </button>
+              <ProfileMenu
+                align="end"
+                variant="scene"
+                onOpenProfile={() => setScene("profile")}
+              />
+            </>
+          )}
+          {demo.isDemo && (
+            <span
+              aria-label="录屏模式"
+              className="ml-1 inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-400/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-200"
+            >
+              录屏
+            </span>
+          )}
         </div>
       </header>
 

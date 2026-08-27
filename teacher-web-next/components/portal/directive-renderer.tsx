@@ -4,12 +4,15 @@ import {
   AlertCircle,
   BadgeInfo,
   BarChart3,
+  Check,
   CheckCircle2,
   ClipboardList,
+  Copy,
   X,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { AgentCard, AgentChoice, AgentDirective } from "@/lib/types";
+import { StreamCursor, TypingDots } from "./student-bits";
 
 const CARD_ICON: Record<string, ReactNode> = {
   info: <BadgeInfo size={16} />,
@@ -121,16 +124,36 @@ export function DirectiveBubble({
   onChoice,
   disabled,
   dismissed,
+  streaming,
 }: {
   directive: AgentDirective;
   onChoice: (choice: AgentChoice) => void;
   disabled?: boolean;
   /** 已取消：收起卡片与操作按钮，仅保留回复文本并淡化。 */
   dismissed?: boolean;
+  /** 正在生成中：reply 为空时显示打字点，有文字时附光标。 */
+  streaming?: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    if (!directive.reply) return;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard
+        .writeText(directive.reply)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    }
+  }
+  const showTypingDots = streaming && !directive.reply;
+  const showCursor = Boolean(streaming && directive.reply);
   return (
     <div className="flex flex-col gap-3">
-      {directive.reply && (
+      {(directive.reply || showTypingDots) && (
         <div
           className={
             dismissed
@@ -138,9 +161,26 @@ export function DirectiveBubble({
               : "max-w-[85%] rounded-2xl rounded-bl-sm border border-border bg-background px-4 py-2.5 text-sm"
           }
         >
-          {directive.reply}
+          {showTypingDots ? (
+            <TypingDots />
+          ) : (
+            <div className="whitespace-pre-wrap">
+              {directive.reply}
+              {showCursor && <StreamCursor />}
+            </div>
+          )}
           {dismissed && (
             <span className="ml-1.5 text-xs text-muted-foreground">· 已取消</span>
+          )}
+          {directive.reply && !dismissed && !streaming && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              aria-label={copied ? "已复制" : "复制回复"}
+              className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {copied ? <Check size={13} /> : <Copy size={13} />}
+            </button>
           )}
         </div>
       )}
@@ -159,15 +199,25 @@ export function DirectiveBubble({
         />
       )}
       {directive.llm_status === "disabled" && (
-        <span className="text-[11px] text-muted-foreground">
+        <div
+          role="status"
+          className="inline-flex w-fit items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 text-[11px] text-muted-foreground"
+        >
+          <BadgeInfo size={12} />
           LLM 未启用，当前为规则引擎回复
-        </span>
+        </div>
       )}
       {(directive.llm_status === "error" ||
         directive.llm_status === "fallback") && (
-        <span className="text-[11px] text-muted-foreground">
-          模型暂不可用，已使用启发式规则回复
-        </span>
+        <div
+          role="alert"
+          className="inline-flex w-fit items-center gap-1.5 rounded-md bg-danger-soft px-2 py-1 text-[11px] text-danger"
+        >
+          <AlertCircle size={12} />
+          {directive.llm_status === "error"
+            ? "模型调用失败，已使用规则兜底"
+            : "模型暂不可用，已使用启发式规则回复"}
+        </div>
       )}
     </div>
   );

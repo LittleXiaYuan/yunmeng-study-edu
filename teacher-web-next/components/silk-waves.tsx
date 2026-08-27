@@ -243,6 +243,7 @@ const SilkWaves: React.FC<SilkWavesProps> = ({
       resizeObserver.disconnect();
 
       renderer.dispose();
+      renderer.forceContextLoss();
       geometry.dispose();
       material.dispose();
       if (container.contains(renderer.domElement)) {

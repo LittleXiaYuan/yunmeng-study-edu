@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { useSession } from "@/components/session-provider";
+import { useDemoMode } from "@/lib/demo-mode";
 import type { HomeworkTask } from "@/lib/types";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileMenu } from "./profile-menu";
@@ -87,6 +88,8 @@ export function PortalShell({
 }) {
   const { user, notice, error, refresh, logout } = useSession();
   const router = useRouter();
+  const demo = useDemoMode();
+  const hideChrome = demo.hideChrome;
 
   const navGroups = groups ?? toGroups(items ?? []);
 
@@ -233,25 +236,32 @@ export function PortalShell({
 
           <div className="mt-3 space-y-3 border-t border-border pt-3">
             {sidebarFooter}
-            <div className="px-2">
-              <strong className="block truncate text-sm">
-                {user?.name ?? user?.username}
-              </strong>
-              <span className="block truncate text-xs text-muted-foreground">
-                {user?.username}
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  logout();
-                  router.replace("/login");
-                }}
-                className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <LogOut size={14} />
-                退出登录
-              </button>
-            </div>
+            {!hideChrome && (
+              <div className="px-2">
+                <strong className="block truncate text-sm">
+                  {user?.name ?? user?.username}
+                </strong>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {user?.username}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    router.replace(demo.withDemo("/login"));
+                  }}
+                  className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <LogOut size={14} />
+                  退出登录
+                </button>
+              </div>
+            )}
+            {hideChrome && (
+              <div className="px-2 text-[10px] uppercase tracking-[0.18em] text-amber-600/80">
+                录屏模式
+              </div>
+            )}
           </div>
         </div>
       </aside>
@@ -269,16 +279,28 @@ export function PortalShell({
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               {headerActions}
-              <ThemeToggle size="sm" />
-              <button
-                type="button"
-                onClick={refresh}
-                className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                <RefreshCw size={15} />
-                <span className="max-[520px]:hidden">刷新</span>
-              </button>
-              <ProfileMenu align="end" variant="portal" />
+              {!hideChrome && (
+                <>
+                  <ThemeToggle size="sm" />
+                  <button
+                    type="button"
+                    onClick={refresh}
+                    className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <RefreshCw size={15} />
+                    <span className="max-[520px]:hidden">刷新</span>
+                  </button>
+                  <ProfileMenu align="end" variant="portal" />
+                </>
+              )}
+              {demo.isDemo && !hideChrome && (
+                <span
+                  aria-label="录屏模式"
+                  className="ml-1 inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-400/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-200"
+                >
+                  录屏
+                </span>
+              )}
             </div>
           </header>
           <StatusLine notice={notice} error={error} />

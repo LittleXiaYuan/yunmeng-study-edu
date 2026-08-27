@@ -15,6 +15,9 @@ import { studentAttempts, studentProfileStats } from "@/lib/portal-helpers";
 import type { HomeworkTask } from "@/lib/types";
 
 const Confetti = dynamic(() => import("react-confetti"), { ssr: false });
+const StarBurst = dynamic(() => import("@/components/star-burst"), {
+  ssr: false,
+});
 
 /**
  * 通关页：一屏一主 CTA。
@@ -54,19 +57,36 @@ export function StudentCelebrate({
   return (
     <div className="relative mx-auto max-w-lg px-6 py-12 text-center sm:py-16">
       {!reduceMotion && (
-        <Confetti
-          recycle={false}
-          numberOfPieces={120}
-          gravity={0.3}
-          tweenDuration={3200}
-          colors={["#1a73e8", "#8ab4f8", "#0d9f6e", "#fbbf24"]}
-          style={{
-            position: "fixed",
-            inset: 0,
-            pointerEvents: "none",
-            zIndex: 40,
-          }}
-        />
+        <>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 -z-10 mx-auto h-72 w-full max-w-md overflow-hidden"
+          >
+            <StarBurst
+              className="h-full w-full"
+              speed={0.6}
+              density={0.6}
+              starCount={7}
+              color="#8ab4f8"
+              brightness={0.6}
+              opacity={0.55}
+              twinkleSpeed={1.4}
+            />
+          </div>
+          <Confetti
+            recycle={false}
+            numberOfPieces={120}
+            gravity={0.3}
+            tweenDuration={3200}
+            colors={["#1a73e8", "#8ab4f8", "#0d9f6e", "#fbbf24"]}
+            style={{
+              position: "fixed",
+              inset: 0,
+              pointerEvents: "none",
+              zIndex: 40,
+            }}
+          />
+        </>
       )}
 
       <motion.div

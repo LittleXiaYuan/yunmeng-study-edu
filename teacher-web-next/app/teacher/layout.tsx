@@ -1,6 +1,10 @@
+import { Suspense, type ReactNode } from "react";
 import { RoleGuard } from "@/components/portal/role-guard";
-import type { ReactNode } from "react";
 
 export default function TeacherLayout({ children }: { children: ReactNode }) {
-  return <RoleGuard role="teacher">{children}</RoleGuard>;
+  return (
+    <Suspense fallback={null}>
+      <RoleGuard role="teacher">{children}</RoleGuard>
+    </Suspense>
+  );
 }

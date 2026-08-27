@@ -173,10 +173,6 @@ interface Ring {
 
 const landDotsCache = new Map<string, LandDot[]>();
 
-/**
- * Efficient random sampling without full array shuffle
- * Uses Fisher-Yates partial shuffle approach
- */
 function getRandomSample<T>(arr: T[], n: number): T[] {
   const len = arr.length;
   if (n >= len) return [...arr];
@@ -195,38 +191,6 @@ function getRandomSample<T>(arr: T[], n: number): T[] {
   return result;
 }
 
-/**
- * Globe - A 3D rotating globe with animated connection arcs
- *
- * Features:
- * - Interactive 3D globe with auto-rotation
- * - Animated arcs showing connections between points
- * - Land dots representing continents
- * - Pulsing rings at destination points
- * - Fully responsive and customizable
- * - Performance optimized with visibility-based animation pausing
- *
- * @example
- * ```tsx
- *
- * <Globe />
- *
- *
- * <Globe
- *   primaryColor="rgb(59, 130, 246)"
- *   neutralColor="rgb(156, 163, 175)"
- *   autoRotateSpeed={1.2}
- * />
- *
- *
- * <Globe
- *   width={800}
- *   height={800}
- *   arcCount={15}
- *   arcInterval={4000}
- * />
- * ```
- */
 export const Globe: React.FC<GlobeProps> = ({
   width = "auto",
   height = "auto",

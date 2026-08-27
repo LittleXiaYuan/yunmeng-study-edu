@@ -62,12 +62,6 @@ export interface BlurHighlightRef {
   reset: () => void;
 }
 
-/**
- * BlurHighlight - Animated paragraph with blur-in effect and automatic text highlighting
- *
- * Displays text that smoothly transitions from blurred to sharp while highlighting
- * specific words or phrases with animated colored backgrounds.
- */
 export const BlurHighlight = React.forwardRef<
   BlurHighlightRef,
   BlurHighlightProps

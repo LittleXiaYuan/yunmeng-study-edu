@@ -67,9 +67,13 @@ export class UnauthorizedError extends Error {
   }
 }
 
+/** 通用 fetch 超时（ms）。避免后端挂掉时 SessionProvider 永远卡在 loading。 */
+const DEFAULT_FETCH_TIMEOUT_MS = 8000;
+
 export async function apiFetch<T = unknown>(
   url: string,
   options: RequestInit = {},
+  timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS,
 ): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -77,7 +81,24 @@ export async function apiFetch<T = unknown>(
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE_URL}${url}`, { ...options, headers });
+  // 始终带超时：浏览器 fetch 默认不设，等待可能几十秒到几分钟
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${url}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error(`请求超时（${timeoutMs}ms），请检查后端是否可达`);
+    }
+    throw e instanceof Error ? e : new Error("网络请求失败");
+  }
+  clearTimeout(timer);
   if (!res.ok) {
     if (res.status === 401) {
       throw new UnauthorizedError();
@@ -375,6 +396,77 @@ export async function bulkCreateStudents(
     }
   }
   return { created, failed, errors };
+}
+
+// ---- 用户管理（超管） ----
+
+/** 列表查询参数：分页 + 关键词 + 角色 + 班级 + 启用状态。 */
+export interface ListUsersParams {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  role?: "admin" | "teacher" | "student";
+  classId?: string;
+  /** 默认 false（仅在用）；true 看全部；undefined 不传该参数。 */
+  archived?: boolean;
+}
+
+/** 列表用户（超管）。后端会自动通过 sanitizeUser 剥离 password_hash。 */
+export async function listUsers(params: ListUsersParams = {}): Promise<Paged<User>> {
+  const q = new URLSearchParams();
+  q.set("page", String(params.page ?? 1));
+  q.set("page_size", String(params.pageSize ?? 20));
+  if (params.keyword) q.set("keyword", params.keyword);
+  if (params.role) q.set("role", params.role);
+  if (params.classId) q.set("class_id", params.classId);
+  if (params.archived !== undefined) q.set("archived", String(params.archived));
+  return apiFetch<Paged<User>>(`/users?${q.toString()}`);
+}
+
+/** 新建用户（超管）。role 不传时后端默认按 username 推断，但前端必须显式传。 */
+export async function createUser(req: {
+  username: string;
+  password: string;
+  name: string;
+  role: "admin" | "teacher" | "student";
+  class_ids?: string[];
+  student_id?: string;
+  school_id?: string;
+  active?: boolean;
+}): Promise<User> {
+  return apiFetch<User>("/users", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify(req),
+  });
+}
+
+/**
+ * 改 / 停用用户。后端 UpdateUserRequest 各字段可空，仅非空字段会更新，
+ * 因此 active 传 boolean 可以同时表达"启用"和"停用"。
+ */
+export async function updateUser(
+  id: string,
+  changes: {
+    name?: string;
+    password?: string;
+    role?: "admin" | "teacher" | "student";
+    class_ids?: string[];
+    student_id?: string;
+    school_id?: string;
+    active?: boolean;
+  },
+): Promise<User> {
+  return apiFetch<User>("/users/update", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({ id, ...changes }),
+  });
+}
+
+/** 停用 = updateUser with active:false 的语义糖。 */
+export function disableUser(id: string): Promise<User> {
+  return updateUser(id, { active: false });
 }
 
 // ---- 组织 / 学校（超管） ----

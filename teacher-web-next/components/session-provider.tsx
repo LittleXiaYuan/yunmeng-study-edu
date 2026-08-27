@@ -179,8 +179,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Session restore on mount
   useEffect(() => {
     (async () => {
+      // ?logout=1 / ?demo=role：一进页面就清旧 token，让 RoleGuard 跳 login
+      // （RoleGuard 看到 user=null 时会自动跳 /login?demo=...&portal=...）
+      if (typeof window !== "undefined") {
+        const sp = new URLSearchParams(window.location.search);
+        if (sp.has("logout") || sp.has("demo")) {
+          api.clearToken();
+        }
+      }
       try {
         if (api.getToken()) await refresh();
+      } catch {
+        // refresh 失败（超时/网络/5xx）：清掉过期 token，让 RoleGuard 跳登录
+        api.clearToken();
+        setUser(null);
+        setDashboard(null);
       } finally {
         setLoading(false);
       }

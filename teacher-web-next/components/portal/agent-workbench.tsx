@@ -1010,6 +1010,7 @@ export function AgentWorkbench({
                 directive={entry.directive}
                 dismissed={entry.dismissed}
                 disabled={sending}
+                streaming={sending}
                 onChoice={(choice) =>
                   handleChoice(entry.id, entry.directive, choice)
                 }

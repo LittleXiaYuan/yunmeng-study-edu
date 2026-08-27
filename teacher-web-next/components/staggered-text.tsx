@@ -73,9 +73,6 @@ export interface StaggeredTextProps {
   onExitComplete?: () => void;
 }
 
-/**
- * Build keyframes object for motion from a "from" snapshot and one or more "to" snapshots.
- */
 const buildKeyframes = (
   from: MotionStyle,
   steps: MotionStyle[],

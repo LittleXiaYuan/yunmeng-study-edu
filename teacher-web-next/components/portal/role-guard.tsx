@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
 import { useSession } from "@/components/session-provider";
+import { useDemoMode, isDemoRole } from "@/lib/demo-mode";
 import type { Role } from "@/lib/types";
 
 const roleLabel: Record<string, string> = {
@@ -31,17 +32,51 @@ export function RoleGuard({
 }) {
   const { user, loading } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const demo = useDemoMode();
+  // 慢网络/死锁时给用户反馈：最多等 6 秒还没拿到 user，自动跳登录
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 6000);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace(`/login?portal=${role}`);
+      // 演示模式：把 ?demo / ?hidechrome 一起带到登录页，否则自动登录后丢失
+      const next = new URLSearchParams();
+      next.set("portal", role);
+      // 透传 URL 上的演示参数（手动 demo 模式、录屏模式）
+      const demoParam = searchParams.get("demo");
+      const hideParam = searchParams.get("hidechrome");
+      if (demoParam && isDemoRole(demoParam)) {
+        next.set("demo", demoParam);
+      } else if (demo.demoRole) {
+        next.set("demo", demo.demoRole);
+      }
+      if (hideParam === "1" || hideParam === "true" || demo.hideChrome) {
+        next.set("hidechrome", "1");
+      }
+      router.replace(`/login?${next.toString()}`);
     }
-  }, [loading, user, role, router]);
+  }, [loading, user, role, router, searchParams, demo.demoRole, demo.hideChrome]);
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-        <span className="text-sm tracking-wide">加载中…</span>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm tracking-wide">
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-brand" />
+          {slow ? "网络较慢，正在尝试恢复…" : "加载中…"}
+        </div>
+        {slow && (
+          <button
+            type="button"
+            onClick={() => router.replace(demo.withDemo(`/login?portal=${role}`))}
+            className="mt-2 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            跳到登录
+          </button>
+        )}
       </div>
     );
   }
@@ -70,6 +105,7 @@ function PortalMismatch({
 }) {
   const { logout } = useSession();
   const router = useRouter();
+  const demo = useDemoMode();
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
@@ -82,7 +118,7 @@ function PortalMismatch({
         </p>
         <div className="mt-6 flex flex-col gap-3">
           <button
-            onClick={() => router.push(roleHome[userRole] ?? "/")}
+            onClick={() => router.push(demo.withDemo(roleHome[userRole] ?? "/"))}
             className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
           >
             进入{roleLabel[userRole] ?? userRole}端
@@ -90,7 +126,7 @@ function PortalMismatch({
           <button
             onClick={() => {
               logout();
-              router.push("/login");
+              router.push(demo.withDemo("/login"));
             }}
             className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
