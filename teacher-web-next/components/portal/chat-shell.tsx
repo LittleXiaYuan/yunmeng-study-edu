@@ -7,7 +7,7 @@ import * as api from "@/lib/api";
 import { useSession } from "@/components/session-provider";
 import type { ConversationSummary } from "@/lib/types";
 import { ProfileMenu } from "./profile-menu";
-import { StatusLine } from "./ui";
+import { StatusToast } from "./ui";
 import { AgentWorkbench } from "./agent-workbench";
 import { ConversationList } from "./conversation-sidebar";
 import { PanelDock } from "./panel-dock";
@@ -30,7 +30,7 @@ const roleName: Record<string, string> = {
  * 超管端与教师端共用，差异仅由 mode 决定。
  */
 export function ChatShell({ mode }: { mode: "admin" | "teacher" }) {
-  const { user, notice, error, logout } = useSession();
+  const { user, notice, error, dismissStatus, logout } = useSession();
   const router = useRouter();
 
   // 面板栈：栈顶为当前可见面板，支持列表→详情的一层以上堆叠。
@@ -162,7 +162,11 @@ export function ChatShell({ mode }: { mode: "admin" | "teacher" }) {
           </div>
           <ProfileMenu align="end" variant="portal" />
         </header>
-        <StatusLine notice={notice} error={error} />
+        <StatusToast
+          notice={notice}
+          error={error}
+          onDismiss={dismissStatus}
+        />
         <main className="min-h-0 flex-1 overflow-hidden">
           <AgentWorkbench
             mode={mode}

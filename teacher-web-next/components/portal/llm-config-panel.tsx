@@ -79,6 +79,11 @@ export function LLMConfigPanel() {
         <code className="rounded bg-background px-1">deepseek-chat</code>。
       </Callout>
 
+      {/* <Callout tone="tip" title="保存前自动测试">
+        启用 LLM 时，后端会先用待保存的地址、模型和密钥发送一次“你好”。
+        只有连接和鉴权成功才会覆盖当前配置；测试失败会保留原配置。
+      </Callout> */}
+
       <div>
         <p className="mb-2 text-xs font-medium text-muted-foreground">
           一键预设
@@ -174,7 +179,13 @@ export function LLMConfigPanel() {
         className={primaryBtnCls}
       >
         <Save size={16} />
-        {busy === "llm-save" ? "保存中…" : "保存并生效"}
+        {busy === "llm-save"
+          ? llmConfig.enabled
+            ? "正在测试连接…"
+            : "保存中…"
+          : llmConfig.enabled
+            ? "测试连接并保存"
+            : "保存配置"}
       </button>
     </div>
   );

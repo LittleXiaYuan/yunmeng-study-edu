@@ -8,11 +8,16 @@ import (
 	"strings"
 )
 
+const maxKnowledgeAnalysisRunes = 24_000
+
+const knowledgeAnalysisOmissionMarker = "\n\n【为控制分析耗时，已省略部分正文】\n\n"
+
 func (s *Service) teacherAgent(ctx context.Context, req AnalyzeRequest) KnowledgeAnalysis {
-	if analysis, err := s.agent.UploadKnowledge(ctx, req); err == nil {
-		return analysis
-	}
-	input := fmt.Sprintf("教案内容：%s\n请输出 JSON：{\"concepts\":[],\"difficulties\":[],\"learning_path\":[]}", req.Content)
+	// 已保存的 LLM 配置会通过 OpenAI-compatible chat completion 连接测试，
+	// 因此分析也使用同一条已验证路径。DeepSeek/OpenAI 并不提供历史遗留的
+	// /v1/knowledge/upload，先调用它只会增加一次无效网络往返。
+	analysisContent := compactKnowledgeAnalysisContent(req.Content)
+	input := fmt.Sprintf("教案内容：%s\n请输出 JSON：{\"concepts\":[],\"difficulties\":[],\"learning_path\":[]}", analysisContent)
 	if text, err := s.agent.Call(ctx, TeacherAgentPrompt, input); err == nil {
 		var out KnowledgeAnalysis
 		if decodeJSONObject(text, &out) == nil && len(out.Concepts)+len(out.Difficulties)+len(out.LearningPath) > 0 {
@@ -20,6 +25,25 @@ func (s *Service) teacherAgent(ctx context.Context, req AnalyzeRequest) Knowledg
 		}
 	}
 	return fallbackKnowledge(req.Content)
+}
+
+func compactKnowledgeAnalysisContent(content string) string {
+	trimmed := strings.TrimSpace(content)
+	runes := []rune(trimmed)
+	if len(runes) <= maxKnowledgeAnalysisRunes {
+		return trimmed
+	}
+
+	marker := []rune(knowledgeAnalysisOmissionMarker)
+	segmentLen := (maxKnowledgeAnalysisRunes - 2*len(marker)) / 3
+	middleStart := (len(runes) - segmentLen) / 2
+	result := make([]rune, 0, maxKnowledgeAnalysisRunes)
+	result = append(result, runes[:segmentLen]...)
+	result = append(result, marker...)
+	result = append(result, runes[middleStart:middleStart+segmentLen]...)
+	result = append(result, marker...)
+	result = append(result, runes[len(runes)-segmentLen:]...)
+	return string(result)
 }
 
 func (s *Service) tutorAgent(ctx context.Context, req ChatRequest, memory StudentMemory) string {

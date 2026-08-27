@@ -29,6 +29,12 @@ type ConfigurableAgentClient interface {
 	Config() LLMConfig
 }
 
+// LLMConfigTester validates a candidate configuration without changing the
+// currently active client. The admin save flow uses this before persistence.
+type LLMConfigTester interface {
+	TestConfig(ctx context.Context, config LLMConfig) error
+}
+
 type YunqueClient struct {
 	baseURL string
 	apiKey  string

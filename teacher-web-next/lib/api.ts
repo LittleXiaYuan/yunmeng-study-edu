@@ -67,8 +67,40 @@ export class UnauthorizedError extends Error {
   }
 }
 
+/** Thrown when a request exceeds its operation-specific client timeout. */
+export class RequestTimeoutError extends Error {
+  constructor(public readonly timeoutMs: number) {
+    super(`请求超时（${timeoutMs}ms），服务器未在限定时间内完成处理`);
+    this.name = "RequestTimeoutError";
+  }
+}
+
 /** 通用 fetch 超时（ms）。避免后端挂掉时 SessionProvider 永远卡在 loading。 */
 const DEFAULT_FETCH_TIMEOUT_MS = 8000;
+/** 保存 LLM 配置前，后端最多会执行 15 秒的候选连接测试。 */
+const LLM_CONFIG_SAVE_TIMEOUT_MS = 20_000;
+/** 教案导入包含文件解析与 LLM 分析，不能沿用普通接口的 8 秒超时。 */
+const LESSON_UPLOAD_TIMEOUT_MS = 120_000;
+
+async function readErrorMessage(res: Response): Promise<string> {
+  // Response body is a one-shot stream. Read it exactly once, then parse the
+  // buffered text so a non-JSON upstream error cannot trigger "body stream
+  // already read" while handling the original failure.
+  const body = await res.text();
+  if (!body) return "";
+  try {
+    const payload = JSON.parse(body) as { error?: unknown; message?: unknown };
+    if (typeof payload.error === "string" && payload.error.trim()) {
+      return payload.error;
+    }
+    if (typeof payload.message === "string" && payload.message.trim()) {
+      return payload.message;
+    }
+  } catch {
+    // Plain-text error response; return it below.
+  }
+  return body;
+}
 
 export async function apiFetch<T = unknown>(
   url: string,
@@ -92,24 +124,23 @@ export async function apiFetch<T = unknown>(
       signal: controller.signal,
     });
   } catch (e) {
-    clearTimeout(timer);
-    if (e instanceof DOMException && e.name === "AbortError") {
-      throw new Error(`请求超时（${timeoutMs}ms），请检查后端是否可达`);
+    if (
+      typeof e === "object" &&
+      e !== null &&
+      "name" in e &&
+      e.name === "AbortError"
+    ) {
+      throw new RequestTimeoutError(timeoutMs);
     }
     throw e instanceof Error ? e : new Error("网络请求失败");
+  } finally {
+    clearTimeout(timer);
   }
-  clearTimeout(timer);
   if (!res.ok) {
     if (res.status === 401) {
       throw new UnauthorizedError();
     }
-    let err = "";
-    try {
-      const errObj = (await res.json()) as { error?: string; message?: string };
-      err = errObj.error || errObj.message || "";
-    } catch {
-      err = await res.text();
-    }
+    const err = await readErrorMessage(res);
     throw new Error(err || "Request failed");
   }
   return (await res.json()) as T;
@@ -164,11 +195,15 @@ export async function getLLMConfig(): Promise<LLMConfig | null> {
 }
 
 export async function saveLLMConfig(config: LLMConfig): Promise<void> {
-  await apiFetch("/edu/llm/config", {
-    method: "POST",
-    headers: jsonHeaders,
-    body: JSON.stringify(config),
-  });
+  await apiFetch(
+    "/edu/llm/config",
+    {
+      method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify(config),
+    },
+    LLM_CONFIG_SAVE_TIMEOUT_MS,
+  );
 }
 
 // ---- Materials / lessons ----
@@ -247,7 +282,20 @@ export async function uploadMaterials(
   if (opts?.courseId) formData.append("course_id", opts.courseId);
   if (opts?.title) formData.append("title", opts.title);
   // No Content-Type header — the browser sets the multipart boundary.
-  return apiFetch("/edu/lessons/upload", { method: "POST", body: formData });
+  try {
+    return await apiFetch(
+      "/edu/lessons/upload",
+      { method: "POST", body: formData },
+      LESSON_UPLOAD_TIMEOUT_MS,
+    );
+  } catch (error) {
+    if (error instanceof RequestTimeoutError) {
+      throw new Error(
+        "文件导入处理超时；服务器可能仍在处理中，请稍后刷新教案库，避免重复提交",
+      );
+    }
+    throw error;
+  }
 }
 
 // ---- RAG retrieval (teacher/admin) ----

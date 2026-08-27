@@ -42,6 +42,7 @@ dist-desktop/
 dist-c4/
 release/
 build/
+.codex-release/
 
 # ─── 工具链本地配置 ──────────────────────────────────────────────────────
 .claude/

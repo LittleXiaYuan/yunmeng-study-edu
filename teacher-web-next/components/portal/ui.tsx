@@ -8,12 +8,16 @@ import {
   LogOut,
   RefreshCw,
   Sparkles,
+  TriangleAlert,
+  X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { useSession } from "@/components/session-provider";
 import { useDemoMode } from "@/lib/demo-mode";
+import { useReducedMotion } from "@/lib/motion";
 import type { HomeworkTask } from "@/lib/types";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileMenu } from "./profile-menu";
@@ -86,7 +90,7 @@ export function PortalShell({
   headerActions?: ReactNode;
   sidebarFooter?: ReactNode;
 }) {
-  const { user, notice, error, refresh, logout } = useSession();
+  const { user, notice, error, dismissStatus, refresh, logout } = useSession();
   const router = useRouter();
   const demo = useDemoMode();
   const hideChrome = demo.hideChrome;
@@ -303,7 +307,11 @@ export function PortalShell({
               )}
             </div>
           </header>
-          <StatusLine notice={notice} error={error} />
+          <StatusToast
+            notice={notice}
+            error={error}
+            onDismiss={dismissStatus}
+          />
           <main className="px-5 py-6 sm:px-8 sm:py-8 lg:px-10">{children}</main>
         </div>
       </div>
@@ -333,25 +341,90 @@ export function PortalShell({
   );
 }
 
-export function StatusLine({
+export function StatusToast({
   notice,
   error,
+  onDismiss,
 }: {
   notice: string;
   error: string;
+  onDismiss: () => void;
 }) {
-  if (!notice && !error) return null;
+  const prefersReducedMotion = useReducedMotion();
+  const message = error || notice;
+  const isError = Boolean(error);
+  const Icon = isError ? TriangleAlert : CheckCircle2;
+
   return (
-    <div
-      role={error ? "alert" : "status"}
-      className={
-        error
-          ? "mx-6 mt-4 rounded-xl border border-danger/30 bg-danger-soft px-4 py-2.5 text-sm text-danger sm:mx-8"
-          : "mx-6 mt-4 rounded-xl border border-success/30 bg-success-soft px-4 py-2.5 text-sm text-success sm:mx-8"
-      }
-    >
-      {error || notice}
-    </div>
+    <AnimatePresence mode="wait">
+      {message && (
+        <motion.div
+          key={`${isError ? "error" : "notice"}:${message}`}
+          role={isError ? "alert" : "status"}
+          aria-atomic="true"
+          data-status-toast
+          data-tone={isError ? "error" : "success"}
+          initial={
+            prefersReducedMotion
+              ? { opacity: 0 }
+              : { opacity: 0, x: 48, y: -16, scale: 0.86, rotate: 1.2 }
+          }
+          animate={{ opacity: 1, x: 0, y: 0, scale: 1, rotate: 0 }}
+          exit={
+            prefersReducedMotion
+              ? { opacity: 0 }
+              : { opacity: 0, x: 28, y: -10, scale: 0.93, rotate: 0.6 }
+          }
+          transition={
+            prefersReducedMotion
+              ? { duration: 0.01 }
+              : {
+                  type: "spring",
+                  stiffness: 440,
+                  damping: 27,
+                  mass: 0.78,
+                  opacity: { duration: 0.16, ease: [0.4, 0, 1, 1] },
+                }
+          }
+          className={`fixed left-3 right-3 top-3 z-[100] flex items-start gap-3 overflow-hidden rounded-2xl border bg-card/95 px-4 py-3.5 text-card-foreground shadow-[var(--shadow-float)] backdrop-blur-xl sm:left-auto sm:right-6 sm:top-6 sm:w-full sm:max-w-sm ${
+            isError ? "border-danger/30" : "border-success/30"
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`absolute inset-y-3 left-0 w-1 rounded-r-full ${
+              isError ? "bg-danger" : "bg-success"
+            }`}
+          />
+          <span
+            aria-hidden="true"
+            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+              isError
+                ? "bg-danger-soft text-danger"
+                : "bg-success-soft text-success"
+            }`}
+          >
+            <Icon size={18} strokeWidth={2.2} />
+          </span>
+          <div className="min-w-0 flex-1 pt-0.5">
+            <p className="text-sm font-semibold tracking-tight">
+              {isError ? "操作未完成" : "操作成功"}
+            </p>
+            <p className="mt-0.5 break-words text-sm leading-5 text-muted-foreground">
+              {message}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="关闭提示"
+            className="-mr-1 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X size={16} />
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

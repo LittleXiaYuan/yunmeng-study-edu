@@ -17,7 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 // MessageCircle/Send used by deprecated AgentPanel only
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useSession } from "@/components/session-provider";
 import StaggeredText from "@/components/staggered-text";
 import { LessonLibrary } from "./lessons/lesson-library";
@@ -152,6 +152,25 @@ export function MaterialsUploadForm({
     courses[0]?.id ?? "course_db",
   );
   const [title, setTitle] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadBusy = busy === "upload";
+
+  function openFilePicker() {
+    if (uploadBusy || !fileInputRef.current) return;
+    // 清空原生 input 的值，确保重新选择同一个文件也会触发 change。
+    fileInputRef.current.value = "";
+    fileInputRef.current.click();
+  }
+
+  function clearSelectedFiles() {
+    clearUploadReport();
+    setSelectedFiles([]);
+  }
+
+  function removeSelectedFile(index: number) {
+    clearUploadReport();
+    setSelectedFiles(selectedFiles.filter((_, fileIndex) => fileIndex !== index));
+  }
 
   const canUpload =
     (selectedFiles.length > 0 || lessonText.trim().length > 0) &&
@@ -201,40 +220,93 @@ export function MaterialsUploadForm({
           placeholder="例如：第3章 关系模型"
         />
       </label>
-      <label
-        htmlFor="lesson-files-drawer"
-        className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-8 text-center transition-colors hover:border-brand/30 hover:bg-muted/50"
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".zip,.docx,.pptx,.xlsx,.pdf,.txt,.md,.csv,.json,.sql"
+        className="hidden"
+        disabled={uploadBusy}
+        aria-label="选择教案文件"
+        onChange={(e) => {
+          clearUploadReport();
+          setSelectedFiles(Array.from(e.target.files || []));
+        }}
+      />
+      <button
+        type="button"
+        disabled={uploadBusy}
+        onClick={openFilePicker}
+        className={`flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-8 text-center transition-colors ${uploadBusy ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-brand/30 hover:bg-muted/50"}`}
       >
-        <input
-          id="lesson-files-drawer"
-          type="file"
-          multiple
-          accept=".zip,.docx,.pptx,.xlsx,.pdf,.txt,.md,.csv,.json,.sql"
-          className="hidden"
-          onChange={(e) => {
-            clearUploadReport();
-            setSelectedFiles(Array.from(e.target.files || []));
-          }}
-        />
         <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft text-brand">
           <UploadCloud size={20} />
         </span>
         <strong className="text-sm">
           {selectedFiles.length
-            ? `已选 ${selectedFiles.length} 个文件`
+            ? "点击重新选择文件"
             : "点击选择文件"}
         </strong>
         <span className="text-xs text-muted-foreground">
-          zip · pdf · docx · pptx · xlsx · txt · sql
+          {selectedFiles.length
+            ? `当前已选 ${selectedFiles.length} 个；重新选择会替换当前列表`
+            : "zip · pdf · docx · pptx · xlsx · txt · sql"}
         </span>
-      </label>
+      </button>
       {selectedFiles.length > 0 && (
-        <MiniList
-          title="待导入"
-          items={selectedFiles.map(
-            (f) => `${f.name} · ${formatBytes(f.size)}`,
-          )}
-        />
+        <div className="rounded-2xl border border-border bg-muted/20 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-foreground">
+              待导入 {selectedFiles.length} 个文件
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={uploadBusy}
+                onClick={openFilePicker}
+                className="inline-flex min-h-8 items-center rounded-lg px-2.5 text-xs font-medium text-brand transition-colors hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                重新选择
+              </button>
+              <button
+                type="button"
+                disabled={uploadBusy}
+                onClick={clearSelectedFiles}
+                className="inline-flex min-h-8 items-center rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                清空全部
+              </button>
+            </div>
+          </div>
+          <ul className="space-y-1.5">
+            {selectedFiles.map((file, index) => (
+              <li
+                key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                className="flex items-center gap-2 rounded-xl border border-border/70 bg-background/75 px-3 py-2"
+              >
+                <FileUp size={16} className="shrink-0 text-brand" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium" title={file.name}>
+                    {file.name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {formatBytes(file.size)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={uploadBusy}
+                  onClick={() => removeSelectedFile(index)}
+                  aria-label={`移除文件 ${file.name}`}
+                  title={`移除 ${file.name}`}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger-soft hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <XCircle size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <textarea
         value={lessonText}

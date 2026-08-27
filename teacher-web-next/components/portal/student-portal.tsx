@@ -41,6 +41,7 @@ import {
   setOnboardDismissed,
 } from "./onboarding-banner";
 import { useDemoMode } from "@/lib/demo-mode";
+import { StatusToast } from "./ui";
 
 type Scene = "home" | "flow" | "ask" | "code" | "profile" | "courses" | "tasks";
 
@@ -57,7 +58,8 @@ export function StudentPortal() {
   const [forceGuide, setForceGuide] = useState(false);
   const [booted, setBooted] = useState(false);
   const scrollRef = useRef<HTMLElement | null>(null);
-  const { user, dashboard, notice, error, refresh } = useSession();
+  const { user, dashboard, notice, error, dismissStatus, refresh } =
+    useSession();
   const demo = useDemoMode();
 
   function showGuide() {
@@ -487,18 +489,11 @@ export function StudentPortal() {
         </div>
       </header>
 
-      {(notice || error) && (
-        <div
-          role={error ? "alert" : "status"}
-          className={
-            error
-              ? "shrink-0 bg-danger-soft px-6 py-1.5 text-center text-xs text-danger"
-              : "shrink-0 bg-success-soft px-6 py-1.5 text-center text-xs text-success"
-          }
-        >
-          {error || notice}
-        </div>
-      )}
+      <StatusToast
+        notice={notice}
+        error={error}
+        onDismiss={dismissStatus}
+      />
 
       <main
         id="student-scroll-root"

@@ -1,5 +1,6 @@
 1:"$Sreact.fragment"
-2:I[52616,["/_next/static/chunks/ec2e4e0b2eb3ab49.js","/_next/static/chunks/06cbde63c1681e22.js","/_next/static/chunks/dfb673d783d12ccc.js"],"RoleGuard"]
-3:I[39756,["/_next/static/chunks/ff1a16fafef87110.js","/_next/static/chunks/7340adf74ff47ec0.js"],"default"]
-4:I[37457,["/_next/static/chunks/ff1a16fafef87110.js","/_next/static/chunks/7340adf74ff47ec0.js"],"default"]
-0:{"buildId":"MEdujBO_RjZdJl6IIDcWQ","rsc":["$","$1","c",{"children":[[["$","script","script-0",{"src":"/_next/static/chunks/dfb673d783d12ccc.js","async":true}]],["$","$L2",null,{"role":"admin","children":["$","$L3",null,{"parallelRouterKey":"children","template":["$","$L4",null,{}]}]}]]}],"loading":null,"isPartial":false}
+2:"$Sreact.suspense"
+3:I[52616,["/_next/static/chunks/bf9e0da41a67393f.js","/_next/static/chunks/c650a8493d385fc1.js","/_next/static/chunks/fd9a74062d7cc86f.js"],"RoleGuard"]
+4:I[39756,["/_next/static/chunks/ff1a16fafef87110.js","/_next/static/chunks/7340adf74ff47ec0.js"],"default"]
+5:I[37457,["/_next/static/chunks/ff1a16fafef87110.js","/_next/static/chunks/7340adf74ff47ec0.js"],"default"]
+0:{"buildId":"vxOEHElkywgf5bKPuaaXS","rsc":["$","$1","c",{"children":[[["$","script","script-0",{"src":"/_next/static/chunks/fd9a74062d7cc86f.js","async":true}]],["$","$2",null,{"fallback":null,"children":["$","$L3",null,{"role":"admin","children":["$","$L4",null,{"parallelRouterKey":"children","template":["$","$L5",null,{}]}]}]}]]}],"loading":null,"isPartial":false}

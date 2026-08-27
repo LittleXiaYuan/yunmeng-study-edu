@@ -2,6 +2,7 @@ package edu_service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -403,8 +404,6 @@ func RegisterHandlers(mux *http.ServeMux, service *Service) {
 		}
 		writeJSON(w, http.StatusOK, resp)
 	})
-
-
 	mux.HandleFunc("POST /edu/lessons/upload", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := RequireRole(r.Context(), "admin", "teacher"); err != nil {
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": err.Error()})
@@ -638,6 +637,14 @@ func RegisterHandlers(mux *http.ServeMux, service *Service) {
 		}
 		resp, err := service.UpdateLLMConfig(r.Context(), req)
 		if err != nil {
+			var testErr *LLMConfigTestError
+			if errors.As(err, &testErr) {
+				writeJSON(w, http.StatusUnprocessableEntity, map[string]string{
+					"code":  testErr.Code,
+					"error": testErr.Error(),
+				})
+				return
+			}
 			writeError(w, err)
 			return
 		}

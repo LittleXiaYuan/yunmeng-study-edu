@@ -94,16 +94,34 @@ func (s *Service) UpdateLLMConfig(ctx context.Context, config LLMConfig) (LLMCon
 	if err != nil {
 		return LLMConfig{}, err
 	}
-	saved, err := s.platform.UpdateLLMConfig(config, actor.ID)
+	current, err := s.platform.LLMConfig()
+	if err != nil {
+		return LLMConfig{}, err
+	}
+	candidate, err := prepareLLMConfigCandidate(config, current)
+	if err != nil {
+		return LLMConfig{}, err
+	}
+	if candidate.Enabled {
+		tester, ok := s.agent.(LLMConfigTester)
+		if !ok {
+			return LLMConfig{}, newLLMConfigTestError(LLMConfigErrorEndpoint, errors.New("agent client does not support config testing"))
+		}
+		if err := tester.TestConfig(ctx, candidate); err != nil {
+			var testErr *LLMConfigTestError
+			if errors.As(err, &testErr) {
+				return LLMConfig{}, testErr
+			}
+			return LLMConfig{}, newLLMConfigTestError(LLMConfigErrorEndpoint, err)
+		}
+	}
+
+	saved, err := s.platform.UpdateLLMConfig(candidate, actor.ID)
 	if err != nil {
 		return LLMConfig{}, err
 	}
 	if configurable, ok := s.agent.(ConfigurableAgentClient); ok {
-		runtimeConfig, runtimeErr := s.platform.LLMConfig()
-		if runtimeErr != nil {
-			runtimeConfig = config
-		}
-		configurable.Configure(LLMConfig{BaseURL: runtimeConfig.BaseURL, APIKey: runtimeConfig.APIKey, Model: runtimeConfig.Model, Enabled: runtimeConfig.Enabled})
+		configurable.Configure(candidate)
 	}
 	return saved, nil
 }

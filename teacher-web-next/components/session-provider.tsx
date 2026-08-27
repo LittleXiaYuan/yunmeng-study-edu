@@ -35,6 +35,7 @@ interface SessionContextValue {
   notice: string;
   error: string;
   setError: (v: string) => void;
+  dismissStatus: () => void;
   // auth
   login: (username: string, password: string) => Promise<User | null>;
   logout: () => void;
@@ -139,11 +140,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [studentAnswer, setStudentAnswer] = useState("");
 
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismissStatus = useCallback(() => {
+    if (noticeTimer.current) {
+      clearTimeout(noticeTimer.current);
+      noticeTimer.current = null;
+    }
+    setNotice("");
+    setError("");
+  }, []);
+
   const flashNotice = useCallback((msg: string) => {
+    setError("");
     setNotice(msg);
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    noticeTimer.current = setTimeout(() => setNotice(""), 3000);
+    noticeTimer.current = setTimeout(() => {
+      setNotice("");
+      noticeTimer.current = null;
+    }, 3000);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
 
   const handleUnauthorized = useCallback((e: unknown) => {
     if (e instanceof UnauthorizedError) {
@@ -502,7 +523,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         "llm-save",
         async () => {
           await api.saveLLMConfig(llmConfig);
-          flashNotice("模型配置已保存并生效");
+          flashNotice(
+            llmConfig.enabled
+              ? "连接测试通过，模型配置已保存并生效"
+              : "LLM 已关闭，配置已保存",
+          );
         },
       ),
     [runMutation, llmConfig, flashNotice],
@@ -518,6 +543,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       notice,
       error,
       setError,
+      dismissStatus,
       login,
       logout,
       refresh,
@@ -562,6 +588,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       busy,
       notice,
       error,
+      dismissStatus,
       login,
       logout,
       refresh,
